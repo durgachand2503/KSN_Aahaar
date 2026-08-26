@@ -1,0 +1,287 @@
+@import "tailwindcss";
+
+/* ═══════════════════════════════════════════
+   KSN AAHAAR — Design System
+   "Modern Heritage" Visual Identity
+   ═══════════════════════════════════════════ */
+
+@theme inline {
+  /* ── Brand Colors ── */
+  --color-forest: #173D18;
+  --color-forest-light: #1E5220;
+  --color-forest-dark: #0F2B10;
+  --color-maroon: #6F1D1B;
+  --color-maroon-light: #8B2724;
+  --color-maroon-dark: #551614;
+  --color-gold: #B88632;
+  --color-gold-light: #D4A04A;
+  --color-gold-dark: #96692A;
+  --color-brown: #4A2415;
+  --color-brown-light: #6B3A22;
+  --color-cream: #FBF6EA;
+  --color-cream-dark: #F5EDD8;
+  --color-cream-light: #FDFBF5;
+
+  /* ── Neutral Palette ── */
+  --color-neutral-50: #FAFAF5;
+  --color-neutral-100: #F5F0E5;
+  --color-neutral-200: #E8E0D0;
+  --color-neutral-300: #D4C9B5;
+  --color-neutral-400: #B5A88F;
+  --color-neutral-500: #8C7E6A;
+  --color-neutral-600: #6B5D4A;
+  --color-neutral-700: #4A3F30;
+  --color-neutral-800: #2D2518;
+  --color-neutral-900: #1A150D;
+
+  /* ── Semantic Colors ── */
+  --color-success: #2D7A3A;
+  --color-warning: #C67E00;
+  --color-error: #C62828;
+  --color-info: #1565C0;
+
+  /* ── Veg / Non-Veg ── */
+  --color-veg: #2E7D32;
+  --color-nonveg: #C62828;
+
+  /* ── Typography ── */
+  --font-heading: "Playfair Display", Georgia, "Times New Roman", serif;
+  --font-body: "Inter", system-ui, -apple-system, sans-serif;
+
+  /* ── Shadows ── */
+  --shadow-soft: 0 2px 8px rgba(74, 36, 21, 0.06);
+  --shadow-card: 0 4px 16px rgba(74, 36, 21, 0.08);
+  --shadow-elevated: 0 8px 32px rgba(74, 36, 21, 0.12);
+  --shadow-modal: 0 16px 48px rgba(74, 36, 21, 0.16);
+
+  /* ── Spacing scale ── */
+  --spacing-18: 4.5rem;
+  --spacing-22: 5.5rem;
+  --spacing-30: 7.5rem;
+
+  /* ── Border Radius ── */
+  --radius-xs: 0.25rem;
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.5rem;
+  --radius-2xl: 2rem;
+  --radius-full: 9999px;
+
+  /* ── Transitions ── */
+  --ease-out-soft: cubic-bezier(0.25, 0.1, 0.25, 1);
+
+  /* ── Z-index scale ── */
+  --z-dropdown: 1000;
+  --z-sticky: 1020;
+  --z-fixed: 1030;
+  --z-modal-backdrop: 1040;
+  --z-modal: 1050;
+  --z-popover: 1060;
+  --z-tooltip: 1070;
+  --z-toast: 1080;
+}
+
+/* ── Base Styles ── */
+:root {
+  --background: #FBF6EA;
+  --foreground: #2D2518;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Typography Utilities ── */
+.heading-display {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  color: var(--color-forest);
+}
+
+.heading-section {
+  font-family: var(--font-heading);
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  color: var(--color-forest);
+}
+
+.text-body {
+  font-family: var(--font-body);
+  font-weight: 400;
+  line-height: 1.6;
+  color: var(--color-neutral-700);
+}
+
+.text-caption {
+  font-family: var(--font-body);
+  font-weight: 500;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--color-neutral-500);
+}
+
+/* ── Price Formatting ── */
+.price {
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-forest);
+}
+
+.price-strike {
+  font-weight: 400;
+  text-decoration: line-through;
+  color: var(--color-neutral-400);
+}
+
+/* ── Scrollbar Styling ── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-neutral-300);
+  border-radius: var(--radius-full);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-neutral-400);
+}
+
+/* ── Focus Styles ── */
+:focus-visible {
+  outline: 2px solid var(--color-gold);
+  outline-offset: 2px;
+  border-radius: var(--radius-xs);
+}
+
+/* ── Selection ── */
+::selection {
+  background: var(--color-gold-light);
+  color: var(--color-forest-dark);
+}
+
+/* ── Gold Decorative Line ── */
+.gold-line {
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--color-gold),
+    transparent
+  );
+}
+
+/* ── Container ── */
+.container-main {
+  width: 100%;
+  max-width: 1280px;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+@media (min-width: 640px) {
+  .container-main {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .container-main {
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
+}
+
+/* ── Skeleton Animation ── */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--color-neutral-100) 25%,
+    var(--color-neutral-200) 50%,
+    var(--color-neutral-100) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: var(--radius-sm);
+}
+
+/* ── Badge Dot (Veg/Non-Veg) ── */
+.badge-veg {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1rem;
+  height: 1rem;
+  border: 1.5px solid var(--color-veg);
+  border-radius: 2px;
+}
+
+.badge-veg::after {
+  content: '';
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--color-veg);
+}
+
+.badge-nonveg {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1rem;
+  height: 1rem;
+  border: 1.5px solid var(--color-nonveg);
+  border-radius: 2px;
+}
+
+.badge-nonveg::after {
+  content: '';
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 0;
+  width: 0;
+  height: 0;
+  border-left: 0.25rem solid transparent;
+  border-right: 0.25rem solid transparent;
+  border-bottom: 0.45rem solid var(--color-nonveg);
+}
