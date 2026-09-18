@@ -29,7 +29,7 @@ router.post('/register', validateBody(registerSchema), async (req: Request, res:
     res.cookie('token', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     });
 
@@ -65,7 +65,7 @@ router.post('/login', validateBody(loginSchema), async (req: Request, res: Respo
     res.cookie('token', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
@@ -97,7 +97,7 @@ router.get('/me', authenticate, async (req: Request, res: Response, next: NextFu
  * POST /api/auth/logout
  */
 router.post('/logout', (_req: Request, res: Response) => {
-  res.cookie('token', '', { httpOnly: true, expires: new Date(0) });
+  res.cookie('token', '', { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', expires: new Date(0) });
   res.json({ success: true, message: 'Logged out successfully' });
 });
 

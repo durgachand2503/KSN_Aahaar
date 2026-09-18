@@ -102,7 +102,7 @@ export async function sendOrderConfirmationEmail(data: OrderConfirmationData): P
             ${data.orderType === 'delivery' && data.deliveryFee > 0 ? `<tr><td style="padding:8px 12px;color:#888;">Delivery Fee</td><td style="padding:8px 12px;text-align:right;color:#888;">₹${data.deliveryFee} (payable at delivery)</td></tr>` : ''}
             <tr style="background:#f0e8da;"><td style="padding:12px;font-weight:700;">Total</td><td style="padding:12px;text-align:right;font-weight:700;">₹${data.total.toLocaleString('en-IN')}</td></tr>
           </table>
-          <a href="https://ksnaahaar.com/order/${data.orderId}" style="display:inline-block;background:#2d5a27;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;">Track Your Order</a>
+          <a href="${config.frontendUrl}/order/${data.orderId}" style="display:inline-block;background:#2d5a27;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;">Track Your Order</a>
           <p style="font-size:12px;color:#aaa;margin-top:24px;">KSN AAHAAR — Miyapur, Hyderabad | +91 79938 77507</p>
         </div>
       `,
@@ -194,7 +194,7 @@ export async function sendStatusUpdateEmail(data: StatusUpdateEmailData): Promis
           ${data.note ? `<div style="background:#fff;border-left:4px solid #2d5a27;padding:12px 16px;border-radius:4px;margin:16px 0;"><p style="margin:0;color:#555;font-size:14px;font-style:italic;">"${data.note}"</p></div>` : ''}
           ${data.newStatus === 'out_for_delivery' || data.newStatus === 'delivered'
             ? ''
-            : `<a href="https://ksnaahaar.com/order/${data.orderId}" style="display:inline-block;background:#2d5a27;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;margin:8px 0;">Track Your Order →</a>`
+            : `<a href="${config.frontendUrl}/order/${data.orderId}" style="display:inline-block;background:#2d5a27;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;margin:8px 0;">Track Your Order →</a>`
           }
           <hr style="border:none;border-top:1px solid #e8ddd0;margin:24px 0;" />
           <p style="font-size:12px;color:#aaa;margin:0;">KSN AAHAAR — Miyapur, Hyderabad | +91 79938 77507</p>
@@ -286,7 +286,7 @@ export async function sendAdminOrderAlert(data: AdminOrderAlertData): Promise<bo
             </tfoot>
           </table>
 
-          <a href="https://ksnaahaar.com/admin/orders" style="display:inline-block;background:#2d5a27;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;margin-bottom:16px;">View in Admin Panel →</a>
+          <a href="${config.frontendUrl}/admin/orders" style="display:inline-block;background:#2d5a27;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;margin-bottom:16px;">View in Admin Panel →</a>
           <p style="font-size:12px;color:#aaa;margin-top:16px;">KSN AAHAAR — Miyapur, Hyderabad</p>
         </div>
       `,

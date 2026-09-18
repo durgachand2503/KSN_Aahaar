@@ -28,7 +28,17 @@ import Admin from '../models/Admin';
 
 dotenv.config();
 
-const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/ksn-aahaar';
+// In production, MONGO_URI must be set explicitly.
+// This localhost fallback is only safe for local development seeding.
+const MONGO_URI = process.env.MONGO_URI;
+if (!MONGO_URI) {
+  if (process.env.NODE_ENV === 'production') {
+    console.error('\n❌ MONGO_URI is required in production. Set it in your environment.\n');
+    process.exit(1);
+  }
+  console.warn('\n⚠️  MONGO_URI not set. Falling back to mongodb://localhost:27017/ksn-aahaar (local dev only).\n');
+}
+const mongoUri = MONGO_URI || 'mongodb://localhost:27017/ksn-aahaar';
 
 // ── Validate required environment variables ──
 const ADMIN_EMAIL    = process.env.ADMIN_EMAIL?.trim();
@@ -55,7 +65,7 @@ async function bootstrap() {
   console.log('═══════════════════════════════════════════\n');
 
   try {
-    await mongoose.connect(MONGO_URI);
+    await mongoose.connect(mongoUri);
     console.log('✅ Connected to MongoDB\n');
 
     // Check if admin already exists
