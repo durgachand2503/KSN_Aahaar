@@ -3,10 +3,36 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
+import { useState, useEffect } from 'react';
 import Button from '@/components/ui/Button';
 import ProductCard from '@/components/product/ProductCard';
-import { PRODUCTS, CATEGORIES, BRAND } from '@/lib/constants';
-import { formatPrice } from '@/lib/utils';
+
+import { API_BASE_URL } from '@/lib/constants';
+
+/* ── Types ── */
+interface Product {
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+  shortDescription: string;
+  category: string;
+  categoryName: string;
+  image: string;
+  isVeg: boolean;
+  isAvailable: boolean;
+  isFeatured: boolean;
+  isBestSeller: boolean;
+  isNewItem: boolean;
+  variants: { _id: string; name: string; price: number; isAvailable: boolean }[];
+}
+
+interface Category {
+  id: string;
+  name: string;
+  slug: string;
+  itemCount?: number;
+}
 
 /* ── Animation variants ── */
 const fadeUp = {
@@ -47,14 +73,6 @@ function LeafIcon({ className }: { className?: string }) {
   );
 }
 
-function ShieldCheckIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><path d="m9 12 2 2 4-4" />
-    </svg>
-  );
-}
-
 function TruckIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -73,30 +91,49 @@ function ArrowRightIcon({ className }: { className?: string }) {
 
 // ── Trust Items ──
 const TRUST_ITEMS = [
-  {
-    icon: ChefHatIcon,
-    title: 'Freshly Prepared',
-    description: 'Prepared with care and served fresh to your doorstep.',
-  },
-  {
-    icon: SparklesIcon,
-    title: 'Authentic Recipes',
-    description: 'Traditional flavours inspired by home cooking.',
-  },
-  {
-    icon: LeafIcon,
-    title: 'Quality Ingredients',
-    description: 'Carefully selected, premium ingredients.',
-  },
-  {
-    icon: TruckIcon,
-    title: 'Delivered Fresh',
-    description: 'Prepared and delivered with attention to quality.',
-  },
+  { icon: ChefHatIcon, title: 'Freshly Prepared', description: 'Prepared with care and served fresh to your doorstep.' },
+  { icon: SparklesIcon, title: 'Authentic Recipes', description: 'Traditional flavours inspired by home cooking.' },
+  { icon: LeafIcon, title: 'Quality Ingredients', description: 'Carefully selected, premium ingredients.' },
+  { icon: TruckIcon, title: 'Delivered Fresh', description: 'Prepared and delivered with attention to quality.' },
 ];
 
+// ── Category skeleton ──
+function CategorySkeleton() {
+  return (
+    <div className="aspect-[3/2] rounded-xl bg-neutral-200 animate-pulse" />
+  );
+}
+
 export default function HomePage() {
-  const featuredProducts = PRODUCTS.filter((p) => p.isFeatured).slice(0, 6);
+  const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [isLoadingProducts, setIsLoadingProducts] = useState(true);
+  const [isLoadingCategories, setIsLoadingCategories] = useState(true);
+
+  // C1 FIX: Load featured products and categories from the live API
+  useEffect(() => {
+    // Fetch featured products
+    fetch(`${API_BASE_URL}/products?featured=true&limit=6`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          setFeaturedProducts(data.data?.products || []);
+        }
+      })
+      .catch(() => {/* silently fail — non-critical */})
+      .finally(() => setIsLoadingProducts(false));
+
+    // Fetch categories
+    fetch(`${API_BASE_URL}/products/categories`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          setCategories(data.data || []);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setIsLoadingCategories(false));
+  }, []);
 
   return (
     <>
@@ -255,7 +292,7 @@ export default function HomePage() {
       </section>
 
       {/* ═══════════════════════════════════
-          FEATURED PRODUCTS
+          FEATURED PRODUCTS — live from API
           ═══════════════════════════════════ */}
       <section className="py-16 lg:py-20" aria-labelledby="featured-heading">
         <div className="container-main">
@@ -280,11 +317,25 @@ export default function HomePage() {
             </motion.div>
           </motion.div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {featuredProducts.map((product, i) => (
-              <ProductCard key={product.id} product={product} index={i} />
-            ))}
-          </div>
+          {isLoadingProducts ? (
+            // Skeleton grid while loading
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="rounded-xl bg-neutral-100 animate-pulse h-72" />
+              ))}
+            </div>
+          ) : featuredProducts.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {featuredProducts.map((product, i) => (
+                <ProductCard key={product.id} product={product} index={i} />
+              ))}
+            </div>
+          ) : (
+            // Graceful fallback if no featured products exist yet
+            <div className="text-center py-12 text-neutral-400">
+              <p className="text-lg">Exciting dishes coming soon!</p>
+            </div>
+          )}
 
           <motion.div
             initial={{ opacity: 0 }}
@@ -302,7 +353,7 @@ export default function HomePage() {
       </section>
 
       {/* ═══════════════════════════════════
-          CATEGORY CARDS
+          CATEGORY CARDS — live from API
           ═══════════════════════════════════ */}
       <section className="py-16 lg:py-20 bg-white" aria-labelledby="categories-heading">
         <div className="container-main">
@@ -331,31 +382,37 @@ export default function HomePage() {
             variants={stagger}
             className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 lg:gap-6"
           >
-            {CATEGORIES.map((cat, i) => (
-              <motion.div key={cat.id} variants={fadeUp} custom={i}>
-                <Link
-                  href={`/menu?category=${cat.slug}`}
-                  className="group block relative aspect-[3/2] rounded-xl overflow-hidden shadow-soft hover:shadow-card transition-all duration-300"
-                >
-                  {/* Background — uses a warm gradient placeholder since we don't have category images yet */}
-                  <div className="absolute inset-0 bg-gradient-to-br from-forest/80 to-forest-dark/90" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+            {isLoadingCategories
+              ? Array.from({ length: 8 }).map((_, i) => (
+                  <motion.div key={i} variants={fadeUp} custom={i}>
+                    <CategorySkeleton />
+                  </motion.div>
+                ))
+              : categories.map((cat, i) => (
+                  <motion.div key={cat.id} variants={fadeUp} custom={i}>
+                    <Link
+                      href={`/menu?category=${cat.slug}`}
+                      className="group block relative aspect-[3/2] rounded-xl overflow-hidden shadow-soft hover:shadow-card transition-all duration-300"
+                    >
+                      {/* Background gradient */}
+                      <div className="absolute inset-0 bg-gradient-to-br from-forest/80 to-forest-dark/90" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
 
-                  {/* Content */}
-                  <div className="relative h-full flex flex-col items-center justify-center p-4 text-center">
-                    <h3 className="font-heading font-semibold text-white text-base lg:text-lg mb-1 group-hover:text-gold transition-colors">
-                      {cat.name}
-                    </h3>
-                    <p className="text-white/60 text-xs">
-                      {cat.itemCount} items
-                    </p>
-                  </div>
+                      {/* Content */}
+                      <div className="relative h-full flex flex-col items-center justify-center p-4 text-center">
+                        <h3 className="font-heading font-semibold text-white text-base lg:text-lg mb-1 group-hover:text-gold transition-colors">
+                          {cat.name}
+                        </h3>
+                        {cat.itemCount !== undefined && (
+                          <p className="text-white/60 text-xs">{cat.itemCount} items</p>
+                        )}
+                      </div>
 
-                  {/* Hover overlay */}
-                  <div className="absolute inset-0 bg-gold/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                </Link>
-              </motion.div>
-            ))}
+                      {/* Hover overlay */}
+                      <div className="absolute inset-0 bg-gold/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                    </Link>
+                  </motion.div>
+                ))}
           </motion.div>
         </div>
       </section>

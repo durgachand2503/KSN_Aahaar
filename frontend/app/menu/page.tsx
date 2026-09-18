@@ -1,10 +1,11 @@
 'use client';
 
-import { Suspense, useState, useMemo, useCallback } from 'react';
+import { Suspense, useState, useRef, useMemo, useCallback, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import ProductCard from '@/components/product/ProductCard';
-import { PRODUCTS, CATEGORIES, BRAND } from '@/lib/constants';
+import { getPublicProducts, getPublicCategories, type ApiProduct, type ApiCategory } from '@/lib/api';
+import { BRAND, getMediaUrl } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 
 /* ── Icons ── */
@@ -33,12 +34,13 @@ function CloseIcon({ className }: { className?: string }) {
 }
 
 /* ── Sort options ── */
-type SortOption = 'popular' | 'price-low' | 'price-high' | 'name-az';
+type SortOption = 'popular' | 'price-low' | 'price-high' | 'name-az' | 'newest';
 const SORT_OPTIONS: { value: SortOption; label: string }[] = [
   { value: 'popular', label: 'Most Popular' },
   { value: 'price-low', label: 'Price: Low to High' },
   { value: 'price-high', label: 'Price: High to Low' },
   { value: 'name-az', label: 'Name: A–Z' },
+  { value: 'newest', label: 'Newest First' },
 ];
 
 /* ── Animation variants ── */
@@ -49,6 +51,29 @@ const fadeUp = {
     transition: { duration: 0.4, delay: i * 0.03, ease: [0.25, 0.1, 0.25, 1] as const },
   }),
 };
+
+/* ── Skeleton grid ── */
+function ProductSkeletons() {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 lg:gap-6">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div key={i} className="bg-white rounded-xl overflow-hidden shadow-soft animate-pulse">
+          <div className="aspect-[4/3] bg-neutral-200" />
+          <div className="p-4 space-y-2">
+            <div className="h-3 bg-neutral-200 rounded w-1/4" />
+            <div className="h-4 bg-neutral-200 rounded w-3/4" />
+            <div className="h-3 bg-neutral-200 rounded w-full" />
+            <div className="h-3 bg-neutral-200 rounded w-2/3" />
+            <div className="flex justify-between items-center pt-2">
+              <div className="h-5 bg-neutral-200 rounded w-1/4" />
+              <div className="h-8 bg-neutral-200 rounded w-16" />
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export default function MenuPage() {
   return (
@@ -68,6 +93,31 @@ function MenuSkeleton() {
   );
 }
 
+/* ── Convert ApiProduct → local Product shape expected by ProductCard ── */
+function toProductCardShape(p: ApiProduct) {
+  const imageUrl = p.image ? getMediaUrl(p.image) : '';
+  return {
+    id: p._id,
+    name: p.name,
+    slug: p.slug,
+    description: p.description,
+    shortDescription: p.shortDescription,
+    category: p.categoryName,
+    categorySlug: p.categorySlug,
+    image: imageUrl,
+    isVeg: p.isVeg,
+    isAvailable: p.isAvailable,
+    isFeatured: p.isFeatured,
+    isBestSeller: p.isBestSeller,
+    isNew: p.isNewItem,
+    variants: p.variants.map(v => ({ id: v._id ?? v.name, name: v.name, price: v.price, isAvailable: v.isAvailable })),
+    ingredients: p.ingredients || [],
+    servingInfo: p.servingInfo || '',
+    displayOrder: p.displayOrder,
+    popularity: p.popularity,
+  };
+}
+
 function MenuPageContent() {
   const searchParams = useSearchParams();
   const initialCategory = searchParams.get('category') || 'all';
@@ -79,17 +129,26 @@ function MenuPageContent() {
   const [sortBy, setSortBy] = useState<SortOption>('popular');
   const [showFilters, setShowFilters] = useState(false);
 
-  // Debounced search
-  const debouncedSetSearch = useMemo(
-    () => {
-      let timeout: ReturnType<typeof setTimeout>;
-      return (value: string) => {
-        clearTimeout(timeout);
-        timeout = setTimeout(() => setDebouncedSearch(value), 300);
-      };
-    },
-    []
-  );
+  // ── API data ──
+  const [products, setProducts] = useState<ApiProduct[]>([]);
+  const [categories, setCategories] = useState<ApiCategory[]>([]);
+  const [loadingProducts, setLoadingProducts] = useState(true);
+  const [loadingCategories, setLoadingCategories] = useState(true);
+
+  // Fetch categories once on mount
+  useEffect(() => {
+    getPublicCategories().then(res => {
+      if (res.success && res.data) setCategories(res.data);
+      setLoadingCategories(false);
+    });
+  }, []);
+
+  // Debounce search — use a ref for the timer so it's stable across renders
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const debouncedSetSearch = useCallback((value: string) => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => setDebouncedSearch(value), 350);
+  }, []);
 
   const handleSearchChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -105,56 +164,31 @@ function MenuPageContent() {
     setDebouncedSearch('');
   };
 
-  // Filter & sort products
-  const filteredProducts = useMemo(() => {
-    let items = [...PRODUCTS];
-
-    // Category filter
-    if (activeCategory !== 'all') {
-      items = items.filter((p) => p.categorySlug === activeCategory);
-    }
-
-    // Veg filter
-    if (vegOnly) {
-      items = items.filter((p) => p.isVeg);
-    }
-
-    // Search filter
-    if (debouncedSearch.trim()) {
-      const query = debouncedSearch.toLowerCase();
-      items = items.filter(
-        (p) =>
-          p.name.toLowerCase().includes(query) ||
-          p.shortDescription.toLowerCase().includes(query) ||
-          p.category.toLowerCase().includes(query) ||
-          (p.ingredients && p.ingredients.some((ing) => ing.toLowerCase().includes(query)))
-      );
-    }
-
-    // Sort
-    switch (sortBy) {
-      case 'popular':
-        items.sort((a, b) => b.popularity - a.popularity);
-        break;
-      case 'price-low':
-        items.sort((a, b) => a.variants[0].price - b.variants[0].price);
-        break;
-      case 'price-high':
-        items.sort((a, b) => b.variants[0].price - a.variants[0].price);
-        break;
-      case 'name-az':
-        items.sort((a, b) => a.name.localeCompare(b.name));
-        break;
-    }
-
-    return items;
+  // Fetch products whenever filters change
+  useEffect(() => {
+    setLoadingProducts(true);
+    getPublicProducts({
+      category: activeCategory !== 'all' ? activeCategory : undefined,
+      veg: vegOnly || undefined,
+      search: debouncedSearch || undefined,
+      sort: sortBy,
+      limit: 200,
+    }).then(res => {
+      if (res.success && res.data) {
+        setProducts(res.data.products);
+      } else {
+        setProducts([]);
+      }
+      setLoadingProducts(false);
+    });
   }, [activeCategory, vegOnly, debouncedSearch, sortBy]);
 
-  const activeCount = filteredProducts.length;
   const activeCategoryName =
     activeCategory === 'all'
       ? 'All Items'
-      : CATEGORIES.find((c) => c.slug === activeCategory)?.name ?? 'All Items';
+      : categories.find(c => c.slug === activeCategory)?.name ?? 'All Items';
+
+  const cardProducts = useMemo(() => products.map(toProductCardShape), [products]);
 
   return (
     <>
@@ -200,25 +234,30 @@ function MenuPageContent() {
             >
               All
             </button>
-            {CATEGORIES.map((cat) => (
-              <button
-                key={cat.id}
-                onClick={() => setActiveCategory(cat.slug)}
-                className={cn(
-                  'flex-shrink-0 px-4 py-2 rounded-full text-xs font-semibold uppercase tracking-wide transition-all duration-200',
-                  activeCategory === cat.slug
-                    ? 'bg-forest text-white shadow-soft'
-                    : 'bg-white text-neutral-600 hover:bg-cream-dark border border-neutral-200'
-                )}
-              >
-                {cat.name}
-              </button>
-            ))}
+            {loadingCategories ? (
+              Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="flex-shrink-0 h-8 w-24 rounded-full bg-neutral-200 animate-pulse" />
+              ))
+            ) : (
+              categories.map(cat => (
+                <button
+                  key={cat._id ?? cat.id}
+                  onClick={() => setActiveCategory(cat.slug)}
+                  className={cn(
+                    'flex-shrink-0 px-4 py-2 rounded-full text-xs font-semibold uppercase tracking-wide transition-all duration-200',
+                    activeCategory === cat.slug
+                      ? 'bg-forest text-white shadow-soft'
+                      : 'bg-white text-neutral-600 hover:bg-cream-dark border border-neutral-200'
+                  )}
+                >
+                  {cat.name}
+                </button>
+              ))
+            )}
           </div>
 
           {/* Search + Controls Row */}
           <div className="flex items-center gap-3 pb-3">
-            {/* Search */}
             <div className="relative flex-1 max-w-md">
               <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
               <input
@@ -268,7 +307,7 @@ function MenuPageContent() {
                   : 'bg-white text-neutral-600 border-neutral-200 hover:border-forest/40'
               )}
               aria-expanded={showFilters}
-              aria-label="Toggle sort and filter options"
+              aria-label="Toggle sort options"
             >
               <FilterIcon className="w-4 h-4" />
               <span className="hidden sm:inline">Sort</span>
@@ -287,13 +326,10 @@ function MenuPageContent() {
               >
                 <div className="flex items-center gap-2 pb-3 flex-wrap">
                   <span className="text-xs text-neutral-500 font-medium mr-1">Sort by:</span>
-                  {SORT_OPTIONS.map((opt) => (
+                  {SORT_OPTIONS.map(opt => (
                     <button
                       key={opt.value}
-                      onClick={() => {
-                        setSortBy(opt.value);
-                        setShowFilters(false);
-                      }}
+                      onClick={() => { setSortBy(opt.value); setShowFilters(false); }}
                       className={cn(
                         'px-3 py-1.5 rounded-full text-[11px] font-medium transition-all',
                         sortBy === opt.value
@@ -311,7 +347,7 @@ function MenuPageContent() {
         </div>
       </div>
 
-      {/* ── Results Info ── */}
+      {/* ── Results ── */}
       <section className="py-6 lg:py-8">
         <div className="container-main">
           <div className="flex items-center justify-between mb-6">
@@ -320,15 +356,16 @@ function MenuPageContent() {
                 {activeCategoryName}
               </h2>
               <p className="text-xs text-neutral-500 mt-0.5">
-                {activeCount} {activeCount === 1 ? 'item' : 'items'}
+                {loadingProducts ? 'Loading…' : `${cardProducts.length} item${cardProducts.length !== 1 ? 's' : ''}`}
                 {vegOnly && ' (Veg only)'}
                 {debouncedSearch && ` matching "${debouncedSearch}"`}
               </p>
             </div>
           </div>
 
-          {/* ── Product Grid ── */}
-          {activeCount > 0 ? (
+          {loadingProducts ? (
+            <ProductSkeletons />
+          ) : cardProducts.length > 0 ? (
             <motion.div
               key={`${activeCategory}-${vegOnly}-${debouncedSearch}-${sortBy}`}
               initial="hidden"
@@ -336,8 +373,8 @@ function MenuPageContent() {
               variants={{ visible: { transition: { staggerChildren: 0.04 } } }}
               className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 lg:gap-6"
             >
-              {filteredProducts.map((product, i) => (
-                <motion.div key={product.id} variants={fadeUp} custom={i}>
+              {cardProducts.map((product, i) => (
+                <motion.div key={product.id ?? i} variants={fadeUp} custom={i}>
                   <ProductCard product={product} index={i} />
                 </motion.div>
               ))}

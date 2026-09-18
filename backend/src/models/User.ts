@@ -2,6 +2,7 @@ import mongoose, { Document, Schema } from 'mongoose';
 import bcrypt from 'bcryptjs';
 
 export interface IAddress {
+  _id?: mongoose.Types.ObjectId;  // Added by mongoose when _id:true on subdocument schema
   label?: string;
   houseFlat: string;
   street: string;
@@ -12,6 +13,7 @@ export interface IAddress {
   instructions?: string;
   isDefault: boolean;
 }
+
 
 export interface IUser extends Document {
   name: string;
@@ -50,9 +52,11 @@ const userSchema = new Schema<IUser>(
     phone: {
       type: String,
       required: true,
+      unique: true,
       trim: true,
       match: [/^[6-9]\d{9}$/, 'Please enter a valid 10-digit phone number'],
     },
+
     password: { type: String, required: true, minlength: 6, select: false },
     addresses: [addressSchema],
   },
@@ -82,7 +86,8 @@ userSchema.methods.comparePassword = async function (candidatePassword: string):
   return bcrypt.compare(candidatePassword, this.password);
 };
 
-// Indexes
-userSchema.index({ phone: 1 });
+// Note: phone already has unique:true on the field definition which creates the index.
+// No additional index declarations needed.
+
 
 export default mongoose.model<IUser>('User', userSchema);

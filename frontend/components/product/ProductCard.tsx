@@ -38,12 +38,17 @@ export default function ProductCard({ product, index = 0 }: ProductCardProps) {
   const [imgError, setImgError] = useState(false);
   const { addItem, getItemQuantity, updateQuantity, removeItem } = useCart();
 
-  const currentQty = getItemQuantity(product.id, selectedVariant.id);
+  // Normalise variant id — backend returns _id, frontend uses id
+  const getVariantId = (v: ProductVariant) => (v.id ?? v._id ?? '') as string;
+  const variantId = getVariantId(selectedVariant);
+
+  const currentQty = getItemQuantity(product.id, variantId);
+
 
   const handleAdd = () => {
     addItem({
       productId: product.id,
-      variantId: selectedVariant.id,
+      variantId: variantId,
       productName: product.name,
       variantName: selectedVariant.name,
       price: selectedVariant.price,
@@ -54,14 +59,14 @@ export default function ProductCard({ product, index = 0 }: ProductCardProps) {
   };
 
   const handleIncrement = () => {
-    updateQuantity(product.id, selectedVariant.id, currentQty + 1);
+    updateQuantity(product.id, variantId, currentQty + 1);
   };
 
   const handleDecrement = () => {
     if (currentQty <= 1) {
-      removeItem(product.id, selectedVariant.id);
+      removeItem(product.id, variantId);
     } else {
-      updateQuantity(product.id, selectedVariant.id, currentQty - 1);
+      updateQuantity(product.id, variantId, currentQty - 1);
     }
   };
 
@@ -128,25 +133,28 @@ export default function ProductCard({ product, index = 0 }: ProductCardProps) {
         {/* Variant Selector */}
         {product.variants.length > 1 && (
           <div className="flex gap-1.5 mb-3">
-            {product.variants.map((variant) => (
-              <button
-                key={variant.id}
-                onClick={() => setSelectedVariant(variant)}
-                disabled={!variant.isAvailable}
-                className={cn(
-                  'px-2.5 py-1 text-[11px] font-medium rounded-md border transition-all duration-200',
-                  selectedVariant.id === variant.id
-                    ? 'bg-forest text-white border-forest'
-                    : variant.isAvailable
-                      ? 'bg-cream border-neutral-200 text-neutral-600 hover:border-forest/30'
-                      : 'bg-neutral-100 border-neutral-200 text-neutral-400 cursor-not-allowed line-through'
-                )}
-                aria-label={`${variant.name} — ${formatPrice(variant.price)}`}
-                aria-pressed={selectedVariant.id === variant.id}
-              >
-                {variant.name}
-              </button>
-            ))}
+            {product.variants.map((variant) => {
+              const vid = getVariantId(variant);
+              return (
+                <button
+                  key={vid || variant.name}
+                  onClick={() => setSelectedVariant(variant)}
+                  disabled={!variant.isAvailable}
+                  className={cn(
+                    'px-2.5 py-1 text-[11px] font-medium rounded-md border transition-all duration-200',
+                    variantId === vid
+                      ? 'bg-forest text-white border-forest'
+                      : variant.isAvailable
+                        ? 'bg-cream border-neutral-200 text-neutral-600 hover:border-forest/30'
+                        : 'bg-neutral-100 border-neutral-200 text-neutral-400 cursor-not-allowed line-through'
+                  )}
+                  aria-label={`${variant.name} — ${formatPrice(variant.price)}`}
+                  aria-pressed={variantId === vid}
+                >
+                  {variant.name}
+                </button>
+              );
+            })}
           </div>
         )}
 

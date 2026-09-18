@@ -1,4 +1,5 @@
 import mongoose, { Document, Schema } from 'mongoose';
+import { getNextSequence } from './Counter';
 
 // ── Status constants ──
 export const ORDER_STATUSES = [
@@ -152,13 +153,16 @@ const orderSchema = new Schema<IOrder>(
 orderSchema.index({ customer: 1 });
 orderSchema.index({ orderStatus: 1 });
 orderSchema.index({ createdAt: -1 });
-orderSchema.index({ razorpayOrderId: 1 });
+orderSchema.index({ razorpayOrderId: 1 }, { sparse: true });
 
-// Auto-generate orderId
+// ── Auto-generate orderId using atomic counter (C4 fix) ──
+// Uses findOneAndUpdate with $inc for collision-safe sequential IDs.
+// A random 3-character suffix prevents sequential enumeration (H10).
 orderSchema.pre('save', async function (next) {
   if (this.isNew && !this.orderId) {
-    const count = await mongoose.model('Order').countDocuments();
-    this.orderId = `KSN${(count + 1001).toString()}`;
+    const seq = await getNextSequence('orderId');
+    const suffix = Math.random().toString(36).substring(2, 5).toUpperCase();
+    this.orderId = `KSN${seq}${suffix}`;
   }
   next();
 });

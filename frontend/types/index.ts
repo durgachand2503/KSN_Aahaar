@@ -4,11 +4,13 @@
 
 // ── Product Types ──
 export interface ProductVariant {
-  id: string;
-  name: string; // e.g., "Single", "Family Pack", "1 KG"
+  id?: string;    // frontend-normalised id
+  _id?: string;   // raw from backend API
+  name: string;   // e.g., "Single", "Family Pack", "1 KG"
   price: number;
   isAvailable: boolean;
 }
+
 
 export interface Product {
   id: string;
@@ -16,18 +18,24 @@ export interface Product {
   slug: string;
   description: string;
   shortDescription: string;
-  category: string;
-  categorySlug: string;
+  category?: string;        // categoryName from backend (kept for backward compat)
+  categoryName?: string;    // Primary field from backend API
+  categorySlug?: string;
   image: string;
   isVeg: boolean;
   isAvailable: boolean;
   isFeatured: boolean;
+  isBestSeller?: boolean;
+  isNewItem?: boolean;      // backend uses isNewItem
+  isNew?: boolean;          // legacy alias
   variants: ProductVariant[];
   ingredients?: string[];
   servingInfo?: string;
-  displayOrder: number;
-  popularity: number;
+  displayOrder?: number;    // Optional — not always returned by API
+  popularity?: number;      // Optional — not always returned by API
 }
+
+
 
 export interface Category {
   id: string;

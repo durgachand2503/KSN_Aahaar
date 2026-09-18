@@ -1,4 +1,5 @@
 import express from 'express';
+import path from 'path';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
@@ -16,6 +17,7 @@ import paymentRoutes from './routes/payment.routes';
 import couponRoutes from './routes/coupon.routes';
 import settingsRoutes from './routes/settings.routes';
 import adminRoutes from './routes/admin.routes';
+import contactRoutes from './routes/contact.routes';
 
 const app = express();
 
@@ -23,7 +25,8 @@ const app = express();
 app.set('trust proxy', 1);
 
 // ── Security ──
-app.use(helmet());
+app.use(helmet({ contentSecurityPolicy: false }));
+app.disable('x-powered-by');
 app.use(cors({
   origin: config.corsOrigin,
   credentials: true,
@@ -32,16 +35,54 @@ app.use(cors({
 }));
 
 // ── Rate Limiting ──
-const limiter = rateLimit({
+const globalLimiter = rateLimit({
   windowMs: config.rateLimitWindowMs,
   max: config.rateLimitMax,
   standardHeaders: true,
   legacyHeaders: false,
   message: { success: false, error: 'Too many requests, please try again later.' },
 });
-app.use(limiter);
 
-// ── Body Parsing ──
+// Stricter limiter for auth endpoints (brute-force protection)
+export const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 15,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, error: 'Too many authentication attempts. Please wait 15 minutes before trying again.' },
+});
+
+// Stricter limiter for payment endpoints
+export const paymentLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, error: 'Too many payment requests. Please try again later.' },
+});
+
+// Very strict limiter for admin login only (brute-force protection)
+// NOTE: This ONLY applies to the login route — not the rest of the admin API.
+export const adminLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20, // 20 login attempts per 15 minutes per IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, error: 'Too many admin login attempts. Please wait 15 minutes.' },
+  skipSuccessfulRequests: true,
+});
+
+app.use(globalLimiter);
+
+// ── Static Files (uploaded images) ──
+app.use('/uploads', express.static(path.join(process.cwd(), 'public', 'uploads')));
+
+// ── CRITICAL: Razorpay webhook MUST receive the raw body for HMAC verification.
+//    This route is registered BEFORE express.json() so it gets the raw Buffer.
+//    The rawBody is attached to req for the route handler.
+app.use('/api/payments/webhook', express.raw({ type: 'application/json' }));
+
+// ── Body Parsing (registered AFTER the raw webhook route) ──
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
@@ -64,13 +105,16 @@ app.get('/api/health', (_req, res) => {
 });
 
 // ── API Routes ──
-app.use('/api/auth', authRoutes);
+app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/orders', orderRoutes);
-app.use('/api/payments', paymentRoutes);
+app.use('/api/payments', paymentLimiter, paymentRoutes);
 app.use('/api/coupons', couponRoutes);
 app.use('/api/settings', settingsRoutes);
+// Admin login gets the strict brute-force limiter; all other admin routes use globalLimiter (already applied above)
+app.use('/api/admin/login', adminLimiter);
 app.use('/api/admin', adminRoutes);
+app.use('/api/contact', contactRoutes);
 
 // ── Error Handling ──
 app.use(notFoundHandler);

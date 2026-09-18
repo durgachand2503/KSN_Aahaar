@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { BRAND } from '@/lib/constants';
+import { sendContactMessage } from '@/lib/api';
 import Button from '@/components/ui/Button';
 
 /* ── Icons ── */
@@ -56,13 +57,33 @@ const contactInfo = [
 export default function ContactPage() {
   const [formData, setFormData] = useState({ name: '', email: '', phone: '', message: '' });
   const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: connect to backend API
-    setSubmitted(true);
-    setTimeout(() => setSubmitted(false), 5000);
-    setFormData({ name: '', email: '', phone: '', message: '' });
+    setLoading(true);
+    setError(null);
+    setSuccessMsg(null);
+
+    const res = await sendContactMessage({
+      name: formData.name,
+      email: formData.email,
+      phone: formData.phone || undefined,
+      message: formData.message,
+    });
+
+    setLoading(false);
+
+    if (res.success) {
+      setSubmitted(true);
+      setSuccessMsg(res.message || 'Message sent! We will get back to you within 24 hours.');
+      setFormData({ name: '', email: '', phone: '', message: '' });
+      setTimeout(() => setSubmitted(false), 8000);
+    } else {
+      setError(res.error || 'Failed to send message. Please try again.');
+    }
   };
 
   return (
@@ -154,7 +175,7 @@ export default function ContactPage() {
                   >
                     <span className="text-5xl mb-4 block">✅</span>
                     <h3 className="font-heading font-semibold text-lg text-forest mb-2">Message Sent!</h3>
-                    <p className="text-sm text-neutral-500">Thank you for reaching out. We&apos;ll get back to you shortly.</p>
+                    <p className="text-sm text-neutral-500">{successMsg || 'Thank you for reaching out. We\'ll get back to you shortly.'}</p>
                   </motion.div>
                 ) : (
                   <form onSubmit={handleSubmit} className="space-y-4">
@@ -203,13 +224,20 @@ export default function ContactPage() {
                         className="w-full px-4 py-3 text-sm bg-cream border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold/50 focus:border-gold transition-colors resize-none"
                       />
                     </div>
+                    {error && (
+                      <div className="p-3 bg-red-50 text-red-600 text-sm rounded-lg border border-red-200">
+                        {error}
+                      </div>
+                    )}
                     <Button
                       type="submit"
                       size="lg"
+                      isLoading={loading}
+                      disabled={loading}
                       icon={<SendIcon className="w-4 h-4" />}
                       iconPosition="right"
                     >
-                      Send Message
+                      {loading ? 'Sending…' : 'Send Message'}
                     </Button>
                   </form>
                 )}

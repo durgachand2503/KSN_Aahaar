@@ -20,6 +20,7 @@ declare global {
 export async function authenticate(req: Request, _res: Response, next: NextFunction) {
   try {
     const token =
+      req.cookies?.adminToken ||
       req.cookies?.token ||
       req.headers.authorization?.replace('Bearer ', '');
 
@@ -69,6 +70,7 @@ export function requireAdmin(req: Request, _res: Response, next: NextFunction) {
 export async function optionalAuth(req: Request, _res: Response, next: NextFunction) {
   try {
     const token =
+      req.cookies?.adminToken ||
       req.cookies?.token ||
       req.headers.authorization?.replace('Bearer ', '');
 

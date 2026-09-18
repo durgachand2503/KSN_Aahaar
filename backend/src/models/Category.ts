@@ -26,8 +26,7 @@ const categorySchema = new Schema<ICategory>(
     timestamps: true,
     toJSON: {
       transform(_doc, ret: Record<string, unknown>) {
-        ret.id = ret._id;
-        delete ret._id;
+        ret.id = ret._id; // keep _id as well for backward-compat
         delete ret.__v;
       },
     },

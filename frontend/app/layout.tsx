@@ -57,10 +57,11 @@ export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://ksnaahaar.com'),
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html
       lang="en"
+      data-scroll-behavior="smooth"
       className={`${inter.variable} ${playfairDisplay.variable} h-full antialiased`}
     >
       <head>
@@ -74,7 +75,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               name: 'KSN AAHAAR',
               description: 'Home Cloud Kitchen serving authentic homemade Indian food in Miyapur, Hyderabad.',
               url: 'https://ksnaahaar.com',
-              telephone: '+91 98765 43210',
+              telephone: '+91 79938 77507',
               email: 'order@ksnaahaar.com',
               address: {
                 '@type': 'PostalAddress',

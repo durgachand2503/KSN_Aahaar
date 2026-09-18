@@ -276,12 +276,39 @@ body {
 
 .badge-nonveg::after {
   content: '';
-  width: 0.5rem;
-  height: 0.5rem;
-  border-radius: 0;
   width: 0;
   height: 0;
   border-left: 0.25rem solid transparent;
   border-right: 0.25rem solid transparent;
   border-bottom: 0.45rem solid var(--color-nonveg);
 }
+
+/* ── No-scrollbar (filter chips) ── */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* ── Touch-target minimum ── */
+.touch-target {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* ── Overflow safety ── */
+body { overflow-x: hidden; }
+
+/* ── Admin panel surface variables ── */
+.admin-surface {
+  background: white;
+  border: 1px solid var(--color-neutral-100);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-soft);
+}
+
+/* ── Fluid section padding ── */
+.section-padding {
+  padding-top: clamp(3rem, 6vw, 5rem);
+  padding-bottom: clamp(3rem, 6vw, 5rem);
+}
+
+/* ── Safe area for mobile bottom nav/footer ── */
+.pb-safe { padding-bottom: env(safe-area-inset-bottom, 0); }

@@ -1,6 +1,6 @@
 /* ═══════════════════════════════════════════
    KSN AAHAAR — WhatsApp Notification Service
-   
+
    MVP approach: Generates WhatsApp deep links.
    For automated server-side messages, integrate
    Meta Business API or Twilio in the future.
@@ -26,8 +26,8 @@ interface OrderNotificationData {
 
 /**
  * Generate a WhatsApp notification message for a new order.
- * In the MVP, we log this to the console. In production,
- * this would send via Meta Business API or Twilio.
+ * In the MVP, this produces a deep link the owner can tap to send the message.
+ * In production, replace with a Meta Business API or Twilio integration.
  */
 export function notifyNewOrder(data: OrderNotificationData): void {
   const itemsList = data.items
@@ -51,50 +51,94 @@ export function notifyNewOrder(data: OrderNotificationData): void {
     `💰 Total: ₹${data.total.toLocaleString('en-IN')}`,
   ].join('\n');
 
-  // Log for now — replace with actual API call for production
-  console.log('\n═══ WhatsApp Notification ═══');
-  console.log(message);
-  console.log('═════════════════════════════\n');
-
-  // Generate deep link for manual notification (useful for testing)
+  // Generate deep link for the owner to send the WhatsApp message manually.
+  // TODO: Replace with Meta Business API for automated notifications.
   const ownerPhone = config.whatsapp?.ownerPhone || '';
   if (ownerPhone) {
     const encodedMsg = encodeURIComponent(message);
     const deepLink = `https://wa.me/${ownerPhone.replace(/[^0-9]/g, '')}?text=${encodedMsg}`;
-    console.log('📲 WhatsApp deep link:', deepLink, '\n');
+    // Only log the deep link (not message content) in non-production environments.
+    if (process.env.NODE_ENV !== 'production') {
+      console.info(`[WhatsApp] New order ${data.orderId} — deep link generated.`);
+      console.info(`[WhatsApp] Link: ${deepLink}`);
+    }
   }
 }
 
 /**
- * Generate a status update notification message.
+ * Generate a status update notification message for the customer.
  */
 export function notifyStatusUpdate(
   orderId: string,
   customerPhone: string,
-  newStatus: string
+  newStatus: string,
+  customerName?: string
 ): void {
   const statusMessages: Record<string, string> = {
-    accepted: '✅ Your order has been accepted by our kitchen!',
-    preparing: '👨‍🍳 Your order is being prepared with love!',
-    ready: '📦 Your order is ready!',
-    out_for_delivery: '🛵 Your order is out for delivery!',
-    delivered: '🎉 Your order has been delivered. Enjoy your meal!',
-    cancelled: '❌ Your order has been cancelled. Contact us for any queries.',
+    accepted: '✅ Your order has been accepted! Our kitchen is getting ready.',
+    preparing: '👨‍🍳 Great news! Your order is now being prepared.',
+    ready: '📦 Your order is ready! It will be dispatched / available for pickup shortly.',
+    out_for_delivery: '🛵 Your order is out for delivery! Our delivery partner is on the way. Stay nearby!',
+    delivered: '🎉 Your order has been delivered! Enjoy your meal. Thank you for choosing KSN AAHAAR! 🍽️',
+    cancelled: '❌ Your order has been cancelled. Contact us at +91 79938 77507 for any queries.',
   };
 
   const statusMsg = statusMessages[newStatus] || `Order status updated to: ${newStatus}`;
+  const greeting = customerName ? `Hi ${customerName},\n\n` : '';
 
   const message = [
     `*KSN AAHAAR — Order Update*`,
     ``,
-    `Order: ${orderId}`,
+    `${greeting}Order ID: *${orderId}*`,
+    ``,
     statusMsg,
     ``,
-    `Track: https://ksnaahaar.com/order/${orderId}`,
-  ].join('\n');
+    newStatus !== 'delivered' && newStatus !== 'cancelled'
+      ? `Track: https://ksnaahaar.com/order/${orderId}`
+      : '',
+  ].filter(Boolean).join('\n');
 
-  console.log('\n═══ Status Update Notification ═══');
-  console.log(`To: ${customerPhone}`);
-  console.log(message);
-  console.log('══════════════════════════════════\n');
+  // Generate deep link — admin taps this to send the status update via WhatsApp.
+  // TODO: Replace with Meta Business API for automated notifications.
+  const cleanPhone = customerPhone.replace(/[^0-9]/g, '');
+  const phone = cleanPhone.startsWith('91') ? cleanPhone : `91${cleanPhone}`;
+  const encoded = encodeURIComponent(message);
+  const deepLink = `https://wa.me/${phone}?text=${encoded}`;
+
+  if (process.env.NODE_ENV !== 'production') {
+    console.info(`[WhatsApp] Status update for order ${orderId} (${newStatus}) — deep link generated.`);
+    console.info(`[WhatsApp] Link: ${deepLink}`);
+  }
+}
+
+/**
+ * Notify owner of a new contact form submission.
+ */
+export function notifyContactForm(data: {
+  name: string;
+  email: string;
+  phone?: string;
+  message: string;
+}): void {
+  const ownerPhone = config.whatsapp?.ownerPhone || '';
+  if (!ownerPhone) return;
+
+  const text = [
+    `📩 *New Contact Message — KSN AAHAAR*`,
+    ``,
+    `👤 Name: ${data.name}`,
+    `📧 Email: ${data.email}`,
+    data.phone ? `📱 Phone: ${data.phone}` : '',
+    ``,
+    `💬 Message:`,
+    data.message,
+  ].filter(l => l !== undefined).join('\n');
+
+  const encoded = encodeURIComponent(text);
+  const deepLink = `https://wa.me/${ownerPhone.replace(/[^0-9]/g, '')}?text=${encoded}`;
+
+  if (process.env.NODE_ENV !== 'production') {
+    console.info(`[WhatsApp] Contact form from ${data.name} <${data.email}> — deep link generated.`);
+    console.info(`[WhatsApp] Link: ${deepLink}`);
+  }
 }

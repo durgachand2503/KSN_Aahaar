@@ -32,7 +32,9 @@ function calculateTotals(items: CartItem[], discount: number): Pick<CartState, '
   const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
   const deliveryFee = subtotal >= DELIVERY_DEFAULTS.freeThreshold ? 0 : (items.length > 0 ? DELIVERY_DEFAULTS.charge : 0);
-  const total = Math.max(0, subtotal + deliveryFee - discount);
+  // NOTE: total = subtotal - discount only. Delivery fee is paid cash-on-delivery,
+  // NOT charged via Razorpay. This must match the backend order.routes.ts calculation.
+  const total = Math.max(0, subtotal - discount);
   return { subtotal, deliveryFee, total, itemCount };
 }
 

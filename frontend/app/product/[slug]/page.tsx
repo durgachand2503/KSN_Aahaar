@@ -1,17 +1,38 @@
 'use client';
 
-import { useState, use } from 'react';
+import { useState, use, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { notFound } from 'next/navigation';
-import type { Product, ProductVariant } from '@/types';
-import { PRODUCTS } from '@/lib/constants';
+import type { ProductVariant } from '@/types';
 import { formatPrice, cn } from '@/lib/utils';
 import { useCart } from '@/contexts/CartContext';
 import { DietBadge } from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 import ProductCard from '@/components/product/ProductCard';
+
+import { API_BASE_URL } from '@/lib/constants';
+
+/* ── Types ── */
+interface ProductDetail {
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+  shortDescription: string;
+  categoryName: string;
+  categorySlug: string;
+  image: string;
+  isVeg: boolean;
+  isAvailable: boolean;
+  isFeatured: boolean;
+  isBestSeller: boolean;
+  isNewItem: boolean;
+  ingredients: string[];
+  servingInfo: string;
+  variants: ProductVariant[];
+}
 
 /* ── Icons ── */
 function MinusIcon({ className }: { className?: string }) {
@@ -54,30 +75,87 @@ function CheckIcon({ className }: { className?: string }) {
   );
 }
 
-export default function ProductDetailPage({ params }: { params: Promise<{ slug: string }> }) {
-  const { slug } = use(params);
-  const product = PRODUCTS.find((p) => p.slug === slug);
-
-  if (!product) {
-    notFound();
-  }
-
-  return <ProductDetail product={product} />;
+function ProductSkeleton() {
+  return (
+    <div className="container-main py-8 lg:py-12">
+      <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 animate-pulse">
+        <div className="aspect-square lg:aspect-[4/3] rounded-2xl bg-neutral-200" />
+        <div className="space-y-4">
+          <div className="h-4 bg-neutral-200 rounded w-20" />
+          <div className="h-8 bg-neutral-200 rounded w-3/4" />
+          <div className="h-4 bg-neutral-200 rounded w-full" />
+          <div className="h-4 bg-neutral-200 rounded w-5/6" />
+          <div className="h-12 bg-neutral-200 rounded w-40 mt-8" />
+        </div>
+      </div>
+    </div>
+  );
 }
 
-function ProductDetail({ product }: { product: Product }) {
+export default function ProductDetailPage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = use(params);
+  const [product, setProduct] = useState<ProductDetail | null>(null);
+  const [relatedProducts, setRelatedProducts] = useState<ProductDetail[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [notFoundError, setNotFoundError] = useState(false);
+
+  useEffect(() => {
+    const fetchProduct = async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/products/${slug}`);
+        if (res.status === 404) {
+          setNotFoundError(true);
+          return;
+        }
+        if (!res.ok) throw new Error('Failed to load product');
+
+        const data = await res.json();
+        const productData = data.data as ProductDetail;
+        setProduct(productData);
+
+        // Fetch related products from same category
+        if (productData.categorySlug) {
+          const relRes = await fetch(`${API_BASE_URL}/products?category=${productData.categorySlug}&limit=4`);
+          if (relRes.ok) {
+            const relData = await relRes.json();
+            const related = (relData.data?.products || []) as ProductDetail[];
+            setRelatedProducts(related.filter(p => p.id !== productData.id).slice(0, 3));
+          }
+        }
+      } catch {
+        setNotFoundError(true);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchProduct();
+  }, [slug]);
+
+  if (notFoundError) notFound();
+  if (isLoading) return <ProductSkeleton />;
+  if (!product) return null;
+
+  return <ProductDetail product={product} relatedProducts={relatedProducts} />;
+}
+
+function ProductDetail({ product, relatedProducts }: { product: ProductDetail; relatedProducts: ProductDetail[] }) {
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant>(
     product.variants.find((v) => v.isAvailable) ?? product.variants[0]
   );
   const [addedFeedback, setAddedFeedback] = useState(false);
+  const [imgError, setImgError] = useState(false);
   const { addItem, getItemQuantity, updateQuantity, removeItem } = useCart();
 
-  const currentQty = getItemQuantity(product.id, selectedVariant.id);
+  // Normalise variant id — backend returns _id, frontend uses id
+  const variantId = (selectedVariant.id ?? selectedVariant._id ?? '') as string;
+
+  const currentQty = getItemQuantity(product.id, variantId);
 
   const handleAdd = () => {
     addItem({
       productId: product.id,
-      variantId: selectedVariant.id,
+      variantId: variantId,
       productName: product.name,
       variantName: selectedVariant.name,
       price: selectedVariant.price,
@@ -89,22 +167,15 @@ function ProductDetail({ product }: { product: Product }) {
     setTimeout(() => setAddedFeedback(false), 1500);
   };
 
-  const handleIncrement = () => {
-    updateQuantity(product.id, selectedVariant.id, currentQty + 1);
-  };
+  const handleIncrement = () => updateQuantity(product.id, variantId, currentQty + 1);
 
   const handleDecrement = () => {
     if (currentQty <= 1) {
-      removeItem(product.id, selectedVariant.id);
+      removeItem(product.id, variantId);
     } else {
-      updateQuantity(product.id, selectedVariant.id, currentQty - 1);
+      updateQuantity(product.id, variantId, currentQty - 1);
     }
   };
-
-  // Related products: same category, excluding current
-  const relatedProducts = PRODUCTS.filter(
-    (p) => p.categorySlug === product.categorySlug && p.id !== product.id && p.isAvailable
-  ).slice(0, 3);
 
   return (
     <>
@@ -117,7 +188,7 @@ function ProductDetail({ product }: { product: Product }) {
           </Link>
           <span className="text-neutral-300">/</span>
           <Link href={`/menu?category=${product.categorySlug}`} className="text-neutral-500 hover:text-forest transition-colors">
-            {product.category}
+            {product.categoryName}
           </Link>
           <span className="text-neutral-300">/</span>
           <span className="text-forest font-medium">{product.name}</span>
@@ -136,16 +207,22 @@ function ProductDetail({ product }: { product: Product }) {
               className="relative"
             >
               <div className="relative aspect-square lg:aspect-[4/3] rounded-2xl overflow-hidden shadow-elevated bg-neutral-100">
-                <Image
-                  src={product.image}
-                  alt={product.name}
-                  fill
-                  priority
-                  sizes="(max-width: 1024px) 100vw, 50vw"
-                  className="object-cover"
-                  placeholder="blur"
-                  blurDataURL="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjRjVFREQ4Ii8+PC9zdmc+"
-                />
+                {imgError || !product.image ? (
+                  <div className="absolute inset-0 bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-100 flex flex-col items-center justify-center">
+                    <span className="text-7xl mb-2">{product.isVeg ? '🥗' : '🍗'}</span>
+                    <span className="text-sm text-neutral-400 font-medium">{product.categoryName}</span>
+                  </div>
+                ) : (
+                  <Image
+                    src={product.image}
+                    alt={product.name}
+                    fill
+                    priority
+                    sizes="(max-width: 1024px) 100vw, 50vw"
+                    className="object-cover"
+                    onError={() => setImgError(true)}
+                  />
+                )}
                 {/* Featured badge */}
                 {product.isFeatured && (
                   <span className="absolute top-4 left-4 z-10 px-3 py-1.5 bg-gold/90 text-white text-xs font-bold uppercase tracking-wider rounded-full backdrop-blur-sm">
@@ -181,7 +258,7 @@ function ProductDetail({ product }: { product: Product }) {
                 href={`/menu?category=${product.categorySlug}`}
                 className="text-xs font-medium uppercase tracking-wider text-gold-dark hover:text-gold transition-colors mb-2"
               >
-                {product.category}
+                {product.categoryName}
               </Link>
 
               {/* Name */}
@@ -225,7 +302,7 @@ function ProductDetail({ product }: { product: Product }) {
                   <div className="flex gap-3">
                     {product.variants.map((variant) => (
                       <button
-                        key={variant.id}
+                        key={variant.id ?? variant._id ?? variant.name}
                         onClick={() => setSelectedVariant(variant)}
                         disabled={!variant.isAvailable}
                         className={cn(
@@ -327,7 +404,7 @@ function ProductDetail({ product }: { product: Product }) {
           <div className="container-main">
             <div className="text-center mb-8">
               <p className="text-caption text-gold-dark mb-2">You may also like</p>
-              <h2 className="heading-section text-2xl lg:text-3xl">More from {product.category}</h2>
+              <h2 className="heading-section text-2xl lg:text-3xl">More from {product.categoryName}</h2>
               <div className="gold-line w-20 mx-auto mt-3" />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 lg:gap-6">

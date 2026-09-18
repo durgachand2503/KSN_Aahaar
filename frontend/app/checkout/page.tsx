@@ -276,6 +276,21 @@ export default function CheckoutPage() {
       const orderResult = await createOrder(orderPayload, token);
 
       if (!orderResult.success || !orderResult.data) {
+        // Handle price changes — 422 with structured data
+        if (orderResult.priceChanges && orderResult.priceChanges.length > 0) {
+          const changes = orderResult.priceChanges
+            .map(c => `• ${c.productName} (${c.variantName}): ₹${c.oldPrice} → ₹${c.newPrice}`)
+            .join('\n');
+          throw new Error(
+            `Prices have changed since you added items to your cart:\n${changes}\n\nPlease refresh your cart to see updated prices.`
+          );
+        }
+        // Handle unavailable items — 422 with unavailableItems
+        if (orderResult.unavailableItems && orderResult.unavailableItems.length > 0) {
+          throw new Error(
+            `Some items are no longer available:\n${orderResult.unavailableItems.map(i => `• ${i}`).join('\n')}\n\nPlease remove them from your cart and try again.`
+          );
+        }
         throw new Error(orderResult.error || 'Failed to create order');
       }
 
@@ -428,7 +443,7 @@ export default function CheckoutPage() {
               animate={{ opacity: 1, y: 0 }}
               className="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl"
             >
-              <p className="text-sm text-red-700">{orderError}</p>
+              <p className="text-sm text-red-700 whitespace-pre-line">{orderError}</p>
               <button
                 onClick={() => setOrderError(null)}
                 className="text-xs text-red-500 underline mt-1"
@@ -660,6 +675,47 @@ export default function CheckoutPage() {
                     Continue
                   </Button>
                 ) : null}
+              </div>
+
+              {/* Mobile Coupon Input — only shown below lg breakpoint */}
+              <div className="mt-4 lg:hidden">
+                <div className="bg-white rounded-xl p-4 shadow-soft">
+                  <p className="text-xs font-semibold text-neutral-500 uppercase tracking-wider mb-3">Have a coupon?</p>
+                  {couponCode ? (
+                    <div className="flex items-center justify-between bg-veg/10 rounded-lg px-3 py-2">
+                      <div>
+                        <span className="text-xs font-bold text-veg">🎉 {couponCode}</span>
+                        <p className="text-[10px] text-neutral-500 mt-0.5">{couponSuccess}</p>
+                      </div>
+                      <button
+                        onClick={handleRemoveCoupon}
+                        className="text-xs text-red-500 hover:text-red-600 font-medium"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={couponInput}
+                          onChange={(e) => { setCouponInput(e.target.value.toUpperCase()); setCouponError(''); }}
+                          placeholder="Enter coupon code"
+                          className="flex-1 px-3 py-2 text-xs bg-cream border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold/50 focus:border-gold transition-colors uppercase"
+                        />
+                        <button
+                          onClick={handleApplyCoupon}
+                          disabled={couponLoading}
+                          className="px-3 py-2 text-xs font-semibold bg-forest text-white rounded-lg hover:bg-forest-dark disabled:opacity-50 transition-colors whitespace-nowrap"
+                        >
+                          {couponLoading ? '...' : 'Apply'}
+                        </button>
+                      </div>
+                      {couponError && <p className="text-[11px] text-red-500 mt-1.5">{couponError}</p>}
+                    </>
+                  )}
+                </div>
               </div>
             </div>
 

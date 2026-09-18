@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { NAV_LINKS, BRAND } from '@/lib/constants';
 import { useCart } from '@/contexts/CartContext';
+import { useAuth } from '@/contexts/AuthContext';
 import Button from '@/components/ui/Button';
 import CartDrawer from '@/components/cart/CartDrawer';
 
@@ -71,11 +72,26 @@ export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const pathname = usePathname();
+  const router = useRouter();
   const { itemCount } = useCart();
+  const { user, isAuthenticated, logout } = useAuth();
+  const userMenuRef = useRef<HTMLDivElement>(null);
 
   const openCart = useCallback(() => setCartOpen(true), []);
   const closeCart = useCallback(() => setCartOpen(false), []);
+
+  // Close user menu on outside click
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setUserMenuOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
@@ -173,13 +189,55 @@ export default function Navbar() {
               )}
             </button>
 
-            <Link
-              href="/account"
-              className="p-2.5 text-neutral-600 hover:text-forest hover:bg-forest/5 rounded-lg transition-colors"
-              aria-label="Account"
-            >
-              <UserIcon className="w-5 h-5" />
-            </Link>
+            {/* Auth-aware account button */}
+            {isAuthenticated && user ? (
+              <div ref={userMenuRef} className="relative">
+                <button
+                  onClick={() => setUserMenuOpen(o => !o)}
+                  className="flex items-center gap-2 p-1.5 pr-3 rounded-full bg-forest/5 hover:bg-forest/10 transition-colors"
+                  aria-label="Account menu"
+                >
+                  <div className="w-7 h-7 rounded-full bg-forest flex items-center justify-center text-white font-bold text-xs">
+                    {user.name.charAt(0).toUpperCase()}
+                  </div>
+                  <span className="text-sm font-medium text-forest max-w-[80px] truncate">{user.name.split(' ')[0]}</span>
+                </button>
+
+                <AnimatePresence>
+                  {userMenuOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 8, scale: 0.95 }}
+                      transition={{ duration: 0.15 }}
+                      className="absolute right-0 top-full mt-2 w-48 bg-white rounded-xl shadow-lg border border-neutral-100 py-1 z-50"
+                    >
+                      <Link href="/account" className="flex items-center gap-2 px-4 py-2.5 text-sm text-neutral-700 hover:bg-cream transition-colors" onClick={() => setUserMenuOpen(false)}>
+                        <UserIcon className="w-4 h-4" /> My Account
+                      </Link>
+                      <Link href="/account/orders" className="flex items-center gap-2 px-4 py-2.5 text-sm text-neutral-700 hover:bg-cream transition-colors" onClick={() => setUserMenuOpen(false)}>
+                        <span className="w-4 h-4 text-center text-xs">📦</span> My Orders
+                      </Link>
+                      <div className="my-1 border-t border-neutral-100" />
+                      <button
+                        onClick={() => { logout(); setUserMenuOpen(false); router.push('/'); }}
+                        className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition-colors"
+                      >
+                        <span className="w-4 h-4 text-center text-xs">↩</span> Sign Out
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            ) : (
+              <Link
+                href="/login"
+                className="p-2.5 text-neutral-600 hover:text-forest hover:bg-forest/5 rounded-lg transition-colors"
+                aria-label="Login"
+              >
+                <UserIcon className="w-5 h-5" />
+              </Link>
+            )}
 
             <Link href="/menu" className="ml-2">
               <Button size="md">Order Now</Button>
@@ -277,19 +335,41 @@ export default function Navbar() {
 
                 {/* Mobile Account Links */}
                 <div className="space-y-1">
-                  <Link
-                    href="/account"
-                    className="flex items-center gap-3 px-4 py-3 text-base font-medium text-neutral-600 hover:text-forest hover:bg-forest/5 rounded-lg"
-                  >
-                    <UserIcon className="w-5 h-5" />
-                    My Account
-                  </Link>
-                  <Link
-                    href="/account/orders"
-                    className="flex items-center gap-3 px-4 py-3 text-base font-medium text-neutral-600 hover:text-forest hover:bg-forest/5 rounded-lg"
-                  >
-                    My Orders
-                  </Link>
+                  {isAuthenticated && user ? (
+                    <>
+                      <Link
+                        href="/account"
+                        className="flex items-center gap-3 px-4 py-3 text-base font-medium text-neutral-600 hover:text-forest hover:bg-forest/5 rounded-lg"
+                      >
+                        <div className="w-6 h-6 rounded-full bg-forest flex items-center justify-center text-white font-bold text-xs">
+                          {user.name.charAt(0).toUpperCase()}
+                        </div>
+                        {user.name.split(' ')[0]}&apos;s Account
+                      </Link>
+                      <Link
+                        href="/account/orders"
+                        className="flex items-center gap-3 px-4 py-3 text-base font-medium text-neutral-600 hover:text-forest hover:bg-forest/5 rounded-lg"
+                      >
+                        <span className="text-lg">📦</span>
+                        My Orders
+                      </Link>
+                      <button
+                        onClick={() => { logout(); setMobileMenuOpen(false); router.push('/'); }}
+                        className="flex w-full items-center gap-3 px-4 py-3 text-base font-medium text-red-500 hover:bg-red-50 rounded-lg"
+                      >
+                        <UserIcon className="w-5 h-5" />
+                        Sign Out
+                      </button>
+                    </>
+                  ) : (
+                    <Link
+                      href="/login"
+                      className="flex items-center gap-3 px-4 py-3 text-base font-medium text-neutral-600 hover:text-forest hover:bg-forest/5 rounded-lg"
+                    >
+                      <UserIcon className="w-5 h-5" />
+                      Sign In / Register
+                    </Link>
+                  )}
                 </div>
 
                 <div className="mt-8">
@@ -360,15 +440,23 @@ export default function Navbar() {
             <span>Cart</span>
           </Link>
           <Link
-            href="/account"
+            href={isAuthenticated ? '/account' : '/login'}
             className={cn(
               'flex flex-col items-center justify-center gap-0.5 text-xs font-medium transition-colors',
               isActive('/account') ? 'text-forest' : 'text-neutral-500'
             )}
             aria-label="Account"
           >
-            <UserIcon className="w-5 h-5" />
-            <span>Account</span>
+            {isAuthenticated && user ? (
+              <div className="relative">
+                <div className="w-5 h-5 rounded-full bg-forest flex items-center justify-center text-white font-bold text-[9px]">
+                  {user.name.charAt(0).toUpperCase()}
+                </div>
+              </div>
+            ) : (
+              <UserIcon className="w-5 h-5" />
+            )}
+            <span>{isAuthenticated ? 'Account' : 'Login'}</span>
           </Link>
         </div>
       </nav>

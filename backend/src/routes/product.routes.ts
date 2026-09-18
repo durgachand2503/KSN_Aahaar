@@ -19,7 +19,7 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
       limit = '50',
     } = req.query as Record<string, string>;
 
-    const filter: Record<string, unknown> = { isAvailable: true };
+    const filter: Record<string, unknown> = { isAvailable: true, isActive: true };
 
     if (category && category !== 'all') {
       filter.categorySlug = category;
@@ -72,7 +72,7 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
  */
 router.get('/featured', async (_req: Request, res: Response, next: NextFunction) => {
   try {
-    const products = await Product.find({ isFeatured: true, isAvailable: true })
+    const products = await Product.find({ isFeatured: true, isAvailable: true, isActive: true })
       .sort({ popularity: -1 })
       .limit(8);
 

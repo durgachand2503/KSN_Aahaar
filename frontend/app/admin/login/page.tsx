@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { useAdminAuth } from '@/contexts/AdminAuthContext';
@@ -14,11 +14,15 @@ export default function AdminLoginPage() {
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
-  // Redirect if already authenticated
-  if (isAuthenticated) {
-    router.replace('/admin');
-    return null;
-  }
+  // Redirect AFTER render if already authenticated — never call router inside render body
+  useEffect(() => {
+    if (isAuthenticated) {
+      router.replace('/admin');
+    }
+  }, [isAuthenticated, router]);
+
+  // Don't render the login form while redirecting
+  if (isAuthenticated) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -130,9 +130,20 @@ export default function Footer() {
         </div>
 
         {/* Bottom Bar */}
-        <div className="mt-12 pt-6 border-t border-white/10 flex flex-col md:flex-row items-center justify-between gap-4">
+        <div className="mt-12 pt-6 border-t border-white/10 flex flex-col md:flex-row items-center justify-between gap-3">
           <p className="text-white/40 text-xs">
             © {new Date().getFullYear()} KSN AAHAAR. All rights reserved.
+          </p>
+          <p className="text-white/40 text-xs">
+            Created by{' '}
+            <a
+              href="https://gdc-portfolio.vercel.app/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-gold hover:text-gold/80 font-semibold transition-colors duration-200 underline underline-offset-2"
+            >
+              GORANTLA DURGA CHAND
+            </a>
           </p>
           <p className="text-white/30 text-xs">
             Miyapur, Hyderabad, Telangana

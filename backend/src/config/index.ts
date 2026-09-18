@@ -1,6 +1,12 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
+// ── Production safety check ──
+// Crash loudly rather than silently use a predictable JWT secret.
+if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) {
+  throw new Error('[FATAL] JWT_SECRET environment variable is required in production. Set it in your .env file.');
+}
+
 export const config = {
   port: parseInt(process.env.PORT || '5000', 10),
   nodeEnv: process.env.NODE_ENV || 'development',
@@ -29,6 +35,13 @@ export const config = {
   // WhatsApp
   whatsapp: {
     ownerPhone: process.env.WHATSAPP_OWNER_PHONE || '',
+  },
+
+  // Email (Nodemailer / Gmail)
+  email: {
+    user: process.env.EMAIL_USER || '',
+    pass: process.env.EMAIL_PASS || '',
+    to:   process.env.EMAIL_TO   || process.env.EMAIL_USER || '',
   },
 
   // Business defaults

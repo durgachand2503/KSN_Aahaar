@@ -1,7 +1,10 @@
 'use client';
 
 import { createContext, useContext, useReducer, useEffect, useCallback, type ReactNode } from 'react';
-import { adminLogin as apiAdminLogin } from '@/lib/api';
+import { API_BASE_URL } from '@/lib/constants';
+
+// Only cache the admin profile (name/email/role), NOT the token
+const ADMIN_CACHE_KEY = 'ksn_admin_profile';
 
 /* ── Types ── */
 interface AdminUser {
@@ -13,7 +16,7 @@ interface AdminUser {
 
 interface AdminAuthState {
   admin: AdminUser | null;
-  token: string | null;
+  token: string | null;  // Kept in memory only — never stored in localStorage (C7 fix)
   isLoading: boolean;
   isAuthenticated: boolean;
 }
@@ -61,41 +64,65 @@ const AdminAuthContext = createContext<AdminAuthContextType | undefined>(undefin
 export function AdminAuthProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(adminAuthReducer, initialState);
 
-  // Check for existing admin auth on mount
+  // C7 FIX: Verify session using the httpOnly cookie set at admin login.
+  // We do NOT store the token in localStorage. Only the admin profile is cached.
   useEffect(() => {
-    const storedToken = localStorage.getItem('ksn_admin_token');
-    const storedAdmin = localStorage.getItem('ksn_admin_user');
-
-    if (storedToken && storedAdmin) {
+    const verifySession = async () => {
+      // Optimistic hydration from cached profile to prevent loading flash
       try {
-        const admin = JSON.parse(storedAdmin) as AdminUser;
-        dispatch({ type: 'SET_ADMIN', payload: { admin, token: storedToken } });
+        const cached = localStorage.getItem(ADMIN_CACHE_KEY);
+        if (cached) {
+          const admin = JSON.parse(cached) as AdminUser;
+          dispatch({ type: 'SET_ADMIN', payload: { admin, token: '' } });
+        }
       } catch {
-        localStorage.removeItem('ksn_admin_token');
-        localStorage.removeItem('ksn_admin_user');
+        localStorage.removeItem(ADMIN_CACHE_KEY);
+      }
+
+      // Verify with server using the httpOnly cookie
+      try {
+        const res = await fetch(`${API_BASE_URL}/admin/me`, {
+          credentials: 'include',
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          const admin = data.data as AdminUser;
+          localStorage.setItem(ADMIN_CACHE_KEY, JSON.stringify(admin));
+          dispatch({ type: 'SET_ADMIN', payload: { admin, token: '' } });
+        } else {
+          localStorage.removeItem(ADMIN_CACHE_KEY);
+          dispatch({ type: 'LOGOUT' });
+        }
+      } catch {
         dispatch({ type: 'SET_LOADING', payload: false });
       }
-    } else {
-      dispatch({ type: 'SET_LOADING', payload: false });
-    }
+    };
+
+    verifySession();
   }, []);
 
   const login = useCallback(async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
 
-      const result = await apiAdminLogin(email, password);
+      const res = await fetch(`${API_BASE_URL}/admin/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',  // Server sets httpOnly cookie
+        body: JSON.stringify({ email, password }),
+      });
 
-      if (!result.success || !result.data) {
+      const data = await res.json();
+      if (!res.ok || !data.success) {
         dispatch({ type: 'SET_LOADING', payload: false });
-        return { success: false, error: result.error || 'Login failed' };
+        return { success: false, error: data.error || 'Login failed' };
       }
 
-      const { admin, token } = result.data;
-      localStorage.setItem('ksn_admin_token', token);
-      localStorage.setItem('ksn_admin_user', JSON.stringify(admin));
-      dispatch({ type: 'SET_ADMIN', payload: { admin, token } });
-
+      const admin = data.data.admin as AdminUser;
+      // C7: Store only the admin profile (not token) for session cache
+      localStorage.setItem(ADMIN_CACHE_KEY, JSON.stringify(admin));
+      dispatch({ type: 'SET_ADMIN', payload: { admin, token: '' } });
       return { success: true };
     } catch {
       dispatch({ type: 'SET_LOADING', payload: false });
@@ -104,9 +131,10 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logout = useCallback(() => {
-    localStorage.removeItem('ksn_admin_token');
-    localStorage.removeItem('ksn_admin_user');
+    localStorage.removeItem(ADMIN_CACHE_KEY);
     dispatch({ type: 'LOGOUT' });
+    // Clear the httpOnly adminToken cookie on the server
+    fetch(`${API_BASE_URL}/admin/logout`, { method: 'POST', credentials: 'include' }).catch(() => {});
   }, []);
 
   return (

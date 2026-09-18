@@ -125,4 +125,20 @@ router.delete('/:id', authenticate, requireAdmin, async (req: Request, res: Resp
   }
 });
 
+/**
+ * PATCH /api/coupons/:id/toggle (Admin only)
+ * Toggle the isActive flag on a coupon
+ */
+router.patch('/:id/toggle', authenticate, requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const coupon = await Coupon.findById(req.params.id);
+    if (!coupon) throw new AppError('Coupon not found', 404);
+    coupon.isActive = !coupon.isActive;
+    await coupon.save();
+    res.json({ success: true, data: coupon.toJSON(), message: `Coupon ${coupon.isActive ? 'activated' : 'deactivated'}` });
+  } catch (error) {
+    next(error);
+  }
+});
+
 export default router;
