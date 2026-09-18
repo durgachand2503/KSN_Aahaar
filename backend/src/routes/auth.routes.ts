@@ -85,7 +85,17 @@ router.post('/login', validateBody(loginSchema), async (req: Request, res: Respo
 router.get('/me', authenticate, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const user = await User.findById(req.user!.id);
-    if (!user) throw new AppError('User not found.', 404);
+    if (!user) {
+      // Token is valid but user was deleted — clear the stale cookie and return 401
+      res.cookie('token', '', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+        expires: new Date(0),
+      });
+      res.status(401).json({ success: false, error: 'Session expired. Please log in again.' });
+      return;
+    }
 
     res.json({ success: true, data: user.toJSON() });
   } catch (error) {

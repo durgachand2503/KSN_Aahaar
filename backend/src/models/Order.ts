@@ -91,7 +91,7 @@ const orderItemSchema = new Schema<IOrderItem>({
   unitPrice: { type: Number, required: true, min: 0 },
   quantity: { type: Number, required: true, min: 1 },
   subtotal: { type: Number, required: true, min: 0 },
-  image: { type: String, required: true },
+  image: { type: String, default: '' },
   isVeg: { type: Boolean, required: true },
 }, { _id: false });
 

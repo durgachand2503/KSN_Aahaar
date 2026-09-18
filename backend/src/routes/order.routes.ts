@@ -75,7 +75,7 @@ router.post('/', optionalAuth, validateBody(createOrderSchema), async (req: Requ
         unitPrice: variant.price,          // ← Always use DB price
         quantity: item.quantity,
         subtotal: variant.price * item.quantity,
-        image: product.image || item.image, // Use latest product image
+        image: product.image || item.image || '', // Explicit fallback — image is optional
         isVeg: product.isVeg,
       };
     });
