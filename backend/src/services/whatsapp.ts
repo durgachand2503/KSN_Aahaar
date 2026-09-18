@@ -94,7 +94,7 @@ export function notifyStatusUpdate(
     statusMsg,
     ``,
     newStatus !== 'delivered' && newStatus !== 'cancelled'
-      ? `Track: https://ksnaahaar.com/order/${orderId}`
+      ? `Track: ${config.frontendUrl}/order/${orderId}`
       : '',
   ].filter(Boolean).join('\n');
 

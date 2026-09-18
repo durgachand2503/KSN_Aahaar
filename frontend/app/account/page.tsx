@@ -137,7 +137,9 @@ export default function AccountPage() {
                     <UserIcon className="w-4 h-4 text-forest flex-shrink-0" />
                     <div className="min-w-0">
                       <p className="text-[10px] text-neutral-400 uppercase tracking-wider font-medium">Member since</p>
-                      <p className="text-sm text-neutral-700">2024</p>
+                      <p className="text-sm text-neutral-700">
+                        {user.createdAt ? new Date(user.createdAt).getFullYear() : new Date().getFullYear()}
+                      </p>
                     </div>
                   </div>
                 </div>

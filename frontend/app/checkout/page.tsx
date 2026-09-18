@@ -605,8 +605,12 @@ export default function CheckoutPage() {
                       <div className="space-y-3">
                         {items.map((item) => (
                           <div key={`${item.productId}-${item.variantId}`} className="flex items-center gap-3">
-                            <div className="relative w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 bg-neutral-100">
-                              <Image src={item.image} alt={item.productName} fill sizes="48px" className="object-cover" />
+                            <div className="relative w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 bg-neutral-100 flex items-center justify-center">
+                              {item.image ? (
+                                <Image src={item.image} alt={item.productName} fill sizes="48px" className="object-cover" />
+                              ) : (
+                                <span className="text-2xl">🍛</span>
+                              )}
                             </div>
                             <div className="flex-1 min-w-0">
                               <p className="text-sm font-medium text-forest truncate">{item.productName}</p>

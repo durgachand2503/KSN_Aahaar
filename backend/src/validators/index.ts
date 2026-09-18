@@ -27,7 +27,7 @@ export const createOrderSchema = z.object({
     variantName: z.string(),
     unitPrice: z.number().min(0),
     quantity: z.number().int().min(1),
-    image: z.string(),
+    image: z.string().optional().default(''),
     isVeg: z.boolean(),
   })).min(1, 'At least one item is required'),
   orderType: z.enum(['delivery', 'pickup']),
